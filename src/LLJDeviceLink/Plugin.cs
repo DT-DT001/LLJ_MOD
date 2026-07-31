@@ -10,7 +10,7 @@ public sealed class Plugin : BasePlugin
 {
     public const string Guid = "cn.lljmod.device-link";
     public const string Name = "LLJ Device Link";
-    public const string Version = "1.3.1";
+    public const string Version = "1.0.0";
 
     internal static ManualLogSource LogSource { get; private set; } = null!;
 

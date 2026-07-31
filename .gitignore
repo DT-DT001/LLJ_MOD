@@ -1,6 +1,7 @@
 # Local game installation and distributable output
 /Game/
 /mod_out/
+/release/
 
 # Local SDK/NuGet cache
 /.appdata/
