@@ -1,0 +1,21 @@
+# Local game installation and distributable output
+/Game/
+/mod_out/
+
+# Local SDK/NuGet cache
+/.appdata/
+
+# .NET build outputs
+**/bin/
+**/obj/
+
+# IDE and user-specific files
+/.vs/
+/.idea/
+*.user
+*.suo
+
+# Runtime logs and temporary files
+*.log
+*.tmp
+*.bak
