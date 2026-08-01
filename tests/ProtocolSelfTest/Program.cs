@@ -33,6 +33,38 @@ Equal("B00000000A0A0A0A0014283C141414140A141E28", ProtocolPackets.CoyoteFrame(0,
     new byte[] { 10, 10, 10, 10, 0, 20, 40, 60 },
     new byte[] { 20, 20, 20, 20, 10, 20, 30, 40 }, false, false), "郊狼等待 B1 时仅发送波形");
 
+var coyoteV3Pulse = CoyotePulseParser.Parse("0A0A0A0A0014283C");
+EqualValue(1, coyoteV3Pulse.Count, "郊狼 V3 PULSE 识别为一个 100ms 帧");
+Equal("0A0A0A0A0014283C", coyoteV3Pulse[0], "郊狼 V3 PULSE 保留四组 25ms 频率和强度");
+var coyoteV2Pulse = CoyotePulseParser.Parse("21010A");
+Equal("0A0A0A0A64646464", coyoteV2Pulse[0], "郊狼 V2 PULSE 按 X+Y 与 Z×5 转为 V3 帧");
+var coyoteB0Pulse = CoyotePulseParser.Parse("B00000000A0A0A0A0014283C141414140A141E28");
+Equal("0A0A0A0A0014283C", coyoteB0Pulse[0], "郊狼完整 B0 PULSE 正确提取单通道波形");
+
+var dungeonlabPulse = CoyotePulseParser.Parse(
+    "Dungeonlab+pulse:0,1,1=0,20,19,2,1/10.00-1,20.00-0");
+EqualValue(20, dungeonlabPulse.Count, "Dungeonlab 多小节格式按小节时长展开为 100ms 帧");
+Equal("0A0A0A0A0A0A0A0A", dungeonlabPulse[0], "Dungeonlab 小节起始频率和强度");
+Equal("0B0B0B0B14141414", dungeonlabPulse[1], "Dungeonlab 小节频率渐变");
+Equal("1D1D1D1D14141414", dungeonlabPulse[^1], "Dungeonlab 小节结束频率和强度");
+var dungeonlabDisabled = CoyotePulseParser.Parse(
+    "Dungeonlab+pulse:0,1,2=0,20,0,1,1/25.00-1+section+0,20,20,1,0/100.00-1");
+EqualValue(1, dungeonlabDisabled.Count, "Dungeonlab 禁用小节不会被导入");
+
+var repositoryRoot = new DirectoryInfo(AppContext.BaseDirectory);
+while (repositoryRoot is not null && !Directory.Exists(Path.Combine(repositoryRoot.FullName, "waveforms", "郊狼")))
+    repositoryRoot = repositoryRoot.Parent;
+EqualValue(true, repositoryRoot is not null, "定位内置波形目录");
+var bundledPulseFiles = Directory.EnumerateFiles(Path.Combine(repositoryRoot!.FullName, "waveforms", "郊狼"), "*.pulse").ToList();
+EqualValue(6, bundledPulseFiles.Count, "发行包使用六个原生郊狼 PULSE 波形");
+foreach (var pulseFile in bundledPulseFiles)
+{
+    var frames = CoyotePulseParser.Parse(File.ReadAllText(pulseFile));
+    EqualValue(true, frames.Count is > 0 and <= CoyotePulseParser.MaxFrames,
+        $"内置 PULSE 可导入：{Path.GetFileName(pulseFile)}");
+    foreach (var frame in frames) CoyotePulseParser.ValidateFrame(frame);
+}
+
 var penaltyAction = new DeviceActionConfig
 {
     BaseIntensity = 10,

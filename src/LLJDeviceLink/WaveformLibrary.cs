@@ -19,18 +19,32 @@ public sealed class WaveformLibrary
     private readonly List<WaveformDefinition> _all = new();
 
     public IReadOnlyList<WaveformDefinition> All => _all;
+    public string LastLoadSummary { get; private set; } = "尚未加载波形";
     public IEnumerable<WaveformDefinition> For(DeviceKind kind) => _all.Where(x => x.Kind == KindFor(kind));
 
     public void Load()
     {
         _all.Clear();
+        var failedCount = 0;
         var root = Path.Combine(Paths.GameRootPath, "waveforms");
         Directory.CreateDirectory(root);
 
-        foreach (var file in Directory.EnumerateFiles(root, "*.json", SearchOption.AllDirectories))
+        var supportedFiles = Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories)
+            .Where(file => Path.GetExtension(file).Equals(".json", StringComparison.OrdinalIgnoreCase) ||
+                           Path.GetExtension(file).Equals(".pulse", StringComparison.OrdinalIgnoreCase) ||
+                           Path.GetExtension(file).Equals(".pules", StringComparison.OrdinalIgnoreCase))
+            .OrderBy(file => file, StringComparer.CurrentCultureIgnoreCase);
+        foreach (var file in supportedFiles)
         {
             try
             {
+                if (Path.GetExtension(file).Equals(".pulse", StringComparison.OrdinalIgnoreCase) ||
+                    Path.GetExtension(file).Equals(".pules", StringComparison.OrdinalIgnoreCase))
+                {
+                    LoadCoyotePulse(root, file);
+                    continue;
+                }
+
                 using var document = JsonDocument.Parse(File.ReadAllText(file));
                 var json = document.RootElement;
                 var id = json.GetProperty("id").GetString() ?? Path.GetFileNameWithoutExtension(file);
@@ -54,7 +68,7 @@ public sealed class WaveformLibrary
                     {
                         var bytes = Convert.FromHexString(value.GetString() ?? "");
                         if (bytes.Length != 8) throw new InvalidDataException("pulseData 每帧必须是 8 字节（16 个十六进制字符）");
-                        ValidateCoyote(bytes);
+                        CoyotePulseParser.ValidateFrame(bytes);
                         waveform.CoyoteFrames.Add(bytes);
                     }
                     if (waveform.CoyoteFrames.Count > 0) _all.Add(waveform);
@@ -69,13 +83,17 @@ public sealed class WaveformLibrary
             }
             catch (Exception ex)
             {
+                failedCount++;
                 Plugin.LogSource.LogWarning($"忽略无效波形 {file}: {ex.Message}");
             }
         }
 
         AddFallbacks();
         _all.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.CurrentCulture));
-        Plugin.LogSource.LogInfo($"已从 {root} 加载 {_all.Count} 个波形");
+        var pulseCount = _all.Count(item => item.Kind == WaveformKind.Coyote &&
+            item.Id.StartsWith("coyote-pulse:", StringComparison.OrdinalIgnoreCase));
+        LastLoadSummary = $"已加载 {_all.Count} 个波形（郊狼 PULSE {pulseCount} 个，失败 {failedCount} 个）";
+        Plugin.LogSource.LogInfo($"{LastLoadSummary}：{root}");
     }
 
     public WaveformDefinition Get(DeviceKind kind, string? id)
@@ -92,12 +110,18 @@ public sealed class WaveformLibrary
         _ => WaveformKind.Ycy
     };
 
-    private static void ValidateCoyote(byte[] bytes)
+    private void LoadCoyotePulse(string root, string file)
     {
-        for (var i = 0; i < 4; i++)
-            if (bytes[i] is < 10 or > 240) throw new InvalidDataException("郊狼频率必须在 10-240");
-        for (var i = 4; i < 8; i++)
-            if (bytes[i] > 100) throw new InvalidDataException("郊狼波形强度必须在 0-100");
+        var relative = Path.GetRelativePath(root, file);
+        var relativeWithoutExtension = Path.ChangeExtension(relative, null)?.Replace('\\', '/') ?? relative;
+        var frames = CoyotePulseParser.Parse(File.ReadAllText(file));
+        _all.Add(new WaveformDefinition
+        {
+            Id = "coyote-pulse:" + relativeWithoutExtension,
+            Name = Path.GetFileName(file),
+            Kind = WaveformKind.Coyote,
+            CoyoteFrames = frames
+        });
     }
 
     private void AddFallbacks()

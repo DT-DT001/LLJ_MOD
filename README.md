@@ -2,7 +2,7 @@
 
 `LLJ Device Link` 是为 `LilyChan Roshutsu` 开发的 Windows 蓝牙设备联动 Mod。它会读取游戏中的惩罚、道具挡位、心率、快感、露出、任务和 NPC 发现等状态，并按照玩家为每台设备单独设置的强度、时间与波形输出。
 
-当前公开版本：`v1.0.1`
+当前公开版本：`v1.0.2`
 
 运行环境：Windows 10/11 64 位、Unity 2022.3.50f1、IL2CPP 版游戏。
 
@@ -31,7 +31,7 @@
 
 ## 下载和安装
 
-1. 打开项目的 [Releases](https://github.com/DT-DT001/LLJ_MOD/releases)，下载 `LLJ-Device-Link-v1.0.1.zip`。
+1. 打开项目的 [Releases](https://github.com/DT-DT001/LLJ_MOD/releases)，下载 `LLJ-Device-Link-v1.0.2.zip`。
 2. 完全退出游戏。
 3. 解压 ZIP。压缩包打开后应直接看到 `BepInEx`、`dotnet`、`waveforms`、`winhttp.dll` 等内容。
 4. 将压缩包里的全部文件和文件夹复制到游戏根目录，也就是与 `LilyChan Roshutsu.exe` 同一层；出现同名目录时选择合并或覆盖。
@@ -80,7 +80,7 @@
 | 重试 | 断开后重新建立连接，适合处理临时 GATT 错误 |
 | 输出 A/B、电量 | 当前实际输出强度和设备回报的电量；不支持电量回报时显示 `--` |
 | 马达模式数 | 飞机杯/跳蛋连接后查询到的 A/B/C 马达能力 |
-| 重新加载波形 | 不重启游戏，重新读取 `waveforms` 中的 JSON 文件 |
+| 重新加载波形 | 不重启游戏，重新读取 `waveforms` 中的 JSON 和郊狼 `.pulse` 文件 |
 
 如果 10 秒内没有找到设备，可以再次点击“连接设备”。同一次扫描中，同一设备只会尝试连接一次。
 
@@ -187,7 +187,7 @@ BepInEx/config/LLJDeviceLink/settings.json
 
 ## 波形和自定义波形
 
-Mod 启动时会递归读取游戏根目录的 `waveforms`。新增或修改 JSON 后，可以在“设备连接”页点击“重新加载波形”，无需重启游戏。不同设备的协议格式不能混用。
+Mod 启动时会递归读取游戏根目录的 `waveforms`。新增或修改 JSON、`.pulse` 后，可以在“设备连接”页点击“重新加载波形”，无需重启游戏。不同设备的协议格式不能混用。
 
 ### 役次元固定模式
 
@@ -205,11 +205,21 @@ Mod 启动时会递归读取游戏根目录的 `waveforms`。新增或修改 JSO
 
 ### 郊狼 3.0 波形
 
-每个字符串为 8 字节：前 4 字节是频率 10–240，后 4 字节是波形强度 0–100：
+郊狼使用原生 `.pulse` 文件。将郊狼 APP 导出的文件直接复制到：
 
-```json
-{"id":"my-coyote","name":"我的郊狼波形","pulseData":["0A0A0A0A14283C50","14141414503C2814"]}
+```text
+游戏根目录/waveforms/郊狼/我的波形.pulse
 ```
+
+支持以下原生或兼容格式：
+
+- 新版 APP 导出的 `Dungeonlab+pulse` 多小节格式，包括小节时长、频率变化模式、启用状态和速度倍率。
+- 郊狼 V3 单通道 8 字节波形，即 16 位十六进制文本；前 4 字节为频率编码，后 4 字节为波形强度。
+- 郊狼 V3 完整 20 字节 B0 帧，即 40 位十六进制文本；Mod 会提取有效通道。
+- 郊狼 V2 的 `X/Y/Z` 三字节格式，即 6 位十六进制文本；会按 `X+Y` 周期和 `Z×5` 强度转换为 V3 帧。
+- 兼容少数错误扩展名 `.pules`，但建议统一使用 `.pulse`。
+
+内置郊狼波形也已全部替换为原始 `.pulse`，不再使用旧版自定义 `pulseData` JSON。旧 JSON 仍可读取，只用于兼容用户已有文件。
 
 ### 飞机杯/跳蛋振动包络
 
@@ -224,7 +234,7 @@ Mod 启动时会递归读取游戏根目录的 `waveforms`。新增或修改 JSO
 ### 按 F8 没有界面
 
 - 确认文件复制到了真正包含 `LilyChan Roshutsu.exe` 的目录，而不是多套了一层文件夹。
-- 检查 `BepInEx/LogOutput.log` 是否出现 `LLJ Device Link 1.0.1 loaded`。
+- 检查 `BepInEx/LogOutput.log` 是否出现 `LLJ Device Link 1.0.2 loaded`。
 - 第一次启动请等待 BepInEx 完成 IL2CPP 文件生成。
 
 ### 点击“连接设备”找不到设备
@@ -264,7 +274,7 @@ Mod 启动时会递归读取游戏根目录的 `waveforms`。新增或修改 JSO
 构建脚本会运行协议与事件逻辑测试，编译 `LLJDeviceLink.dll`，然后同步到本地 `Game` 和 `mod_out`。源码结构：
 
 - `src/LLJDeviceLink`：Mod、BLE、协议、事件路由和界面源码
-- `tests/ProtocolSelfTest`：协议封包、强度计算、事件目录与迁移测试
+- `tests/ProtocolSelfTest`：协议封包、PULSE 导入、强度计算、事件目录与迁移测试
 - `tools/AssemblyCatalog`：IL2CPP 互操作程序集类型检查工具
 - `waveforms`：三类设备的内置波形
 - `协议`：设备协议资料与示例

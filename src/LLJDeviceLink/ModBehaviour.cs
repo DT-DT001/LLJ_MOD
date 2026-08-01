@@ -190,7 +190,7 @@ public sealed class ModBehaviour : MonoBehaviour
         if (Button(292, 76, 145, 32, "重新加载波形"))
         {
             _waveforms.Load();
-            SetNotice($"已加载 {_waveforms.All.Count} 个波形");
+            SetNotice(_waveforms.LastLoadSummary);
         }
         Label(450, 82, 450, 24, $"扫描：{(_ble.IsScanning ? $"剩余 {_ble.ScanSecondsRemaining} 秒" : "未运行")}　发现：{_ble.Discovered.Count}　连接：{_ble.Sessions.Count}");
 
@@ -420,12 +420,13 @@ public sealed class ModBehaviour : MonoBehaviour
         }
 
         var index = list.FindIndex(item => string.Equals(item.Id, action.WaveformId, StringComparison.OrdinalIgnoreCase));
+        var dirty = false;
         if (index < 0)
         {
             index = 0;
             action.WaveformId = list[0].Id;
+            dirty = true;
         }
-        var dirty = false;
         Label(x, y + 4, 88, 24, kind == DeviceKind.YcyToy ? "振动波形" : "电击波形");
         if (Button(x + 92, y, 42, 28, "<"))
         {
