@@ -38,6 +38,17 @@ public static class CoyotePulseParser
         @"-?\d+(?:\.\d+)?",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
+    private static readonly HashSet<string> ObsoleteBundledJsonIds = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "c3-velvet", "c3-sine-low", "c3-afterglow", "c3-double-hit", "c3-heartbeat",
+        "c3-morse", "c3-crystal", "c3-storm", "c3-soft-breath", "c3-wave-surf",
+        "c3-ripple", "c3-crescendo", "c3-tide-rise", "c3-fast-tap", "c3-feather",
+        "c3-spiral", "c3-needle-rain", "c3-saw", "c3-thunder", "c3-pulse-ladder"
+    };
+
+    public static bool IsObsoleteBundledJsonId(string? id)
+        => !string.IsNullOrWhiteSpace(id) && ObsoleteBundledJsonIds.Contains(id);
+
     public static List<byte[]> Parse(string text)
     {
         if (string.IsNullOrWhiteSpace(text))

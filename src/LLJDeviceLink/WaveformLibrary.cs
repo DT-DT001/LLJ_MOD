@@ -26,6 +26,7 @@ public sealed class WaveformLibrary
     {
         _all.Clear();
         var failedCount = 0;
+        var obsoleteIgnoredCount = 0;
         var root = Path.Combine(Paths.GameRootPath, "waveforms");
         Directory.CreateDirectory(root);
 
@@ -63,6 +64,11 @@ public sealed class WaveformLibrary
                 }
                 else if (json.TryGetProperty("pulseData", out var pulseNode))
                 {
+                    if (CoyotePulseParser.IsObsoleteBundledJsonId(id))
+                    {
+                        obsoleteIgnoredCount++;
+                        continue;
+                    }
                     var waveform = new WaveformDefinition { Id = id, Name = name, Kind = WaveformKind.Coyote };
                     foreach (var value in pulseNode.EnumerateArray())
                     {
@@ -92,7 +98,7 @@ public sealed class WaveformLibrary
         _all.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.CurrentCulture));
         var pulseCount = _all.Count(item => item.Kind == WaveformKind.Coyote &&
             item.Id.StartsWith("coyote-pulse:", StringComparison.OrdinalIgnoreCase));
-        LastLoadSummary = $"已加载 {_all.Count} 个波形（郊狼 PULSE {pulseCount} 个，失败 {failedCount} 个）";
+        LastLoadSummary = $"已加载 {_all.Count} 个波形（郊狼 PULSE {pulseCount} 个，失败 {failedCount} 个，忽略旧格式 {obsoleteIgnoredCount} 个）";
         Plugin.LogSource.LogInfo($"{LastLoadSummary}：{root}");
     }
 

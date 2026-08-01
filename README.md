@@ -2,7 +2,7 @@
 
 `LLJ Device Link` 是为 `LilyChan Roshutsu` 开发的 Windows 蓝牙设备联动 Mod。它会读取游戏中的惩罚、道具挡位、心率、快感、露出、任务和 NPC 发现等状态，并按照玩家为每台设备单独设置的强度、时间与波形输出。
 
-当前公开版本：`v1.0.2`
+当前公开版本：`v1.0.3`
 
 运行环境：Windows 10/11 64 位、Unity 2022.3.50f1、IL2CPP 版游戏。
 
@@ -31,7 +31,7 @@
 
 ## 下载和安装
 
-1. 打开项目的 [Releases](https://github.com/DT-DT001/LLJ_MOD/releases)，下载 `LLJ-Device-Link-v1.0.2.zip`。
+1. 打开项目的 [Releases](https://github.com/DT-DT001/LLJ_MOD/releases)，下载 `LLJ-Device-Link-v1.0.3.zip`。
 2. 完全退出游戏。
 3. 解压 ZIP。压缩包打开后应直接看到 `BepInEx`、`dotnet`、`waveforms`、`winhttp.dll` 等内容。
 4. 将压缩包里的全部文件和文件夹复制到游戏根目录，也就是与 `LilyChan Roshutsu.exe` 同一层；出现同名目录时选择合并或覆盖。
@@ -219,7 +219,7 @@ Mod 启动时会递归读取游戏根目录的 `waveforms`。新增或修改 JSO
 - 郊狼 V2 的 `X/Y/Z` 三字节格式，即 6 位十六进制文本；会按 `X+Y` 周期和 `Z×5` 强度转换为 V3 帧。
 - 兼容少数错误扩展名 `.pules`，但建议统一使用 `.pulse`。
 
-内置郊狼波形也已全部替换为原始 `.pulse`，不再使用旧版自定义 `pulseData` JSON。旧 JSON 仍可读取，只用于兼容用户已有文件。
+内置郊狼波形也已全部替换为原始 `.pulse`，不再使用旧版自定义 `pulseData` JSON。用户自己的 `pulseData` JSON 仍可读取；从 v1.0.1 覆盖升级时，加载器会按旧内置 ID 忽略可能残留的 20 个错误 JSON，不会误删其他用户文件。
 
 ### 飞机杯/跳蛋振动包络
 
@@ -234,7 +234,7 @@ Mod 启动时会递归读取游戏根目录的 `waveforms`。新增或修改 JSO
 ### 按 F8 没有界面
 
 - 确认文件复制到了真正包含 `LilyChan Roshutsu.exe` 的目录，而不是多套了一层文件夹。
-- 检查 `BepInEx/LogOutput.log` 是否出现 `LLJ Device Link 1.0.2 loaded`。
+- 检查 `BepInEx/LogOutput.log` 是否出现 `LLJ Device Link 1.0.3 loaded`。
 - 第一次启动请等待 BepInEx 完成 IL2CPP 文件生成。
 
 ### 点击“连接设备”找不到设备

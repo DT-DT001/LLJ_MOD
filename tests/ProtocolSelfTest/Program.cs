@@ -64,6 +64,11 @@ foreach (var pulseFile in bundledPulseFiles)
         $"内置 PULSE 可导入：{Path.GetFileName(pulseFile)}");
     foreach (var frame in frames) CoyotePulseParser.ValidateFrame(frame);
 }
+EqualValue(true,
+    CoyotePulseParser.IsObsoleteBundledJsonId("c3-soft-breath") &&
+    CoyotePulseParser.IsObsoleteBundledJsonId("C3-PULSE-LADDER") &&
+    !CoyotePulseParser.IsObsoleteBundledJsonId("user-custom-coyote"),
+    "覆盖升级时忽略旧版错误内置 JSON，但保留用户自定义 JSON");
 
 var penaltyAction = new DeviceActionConfig
 {
