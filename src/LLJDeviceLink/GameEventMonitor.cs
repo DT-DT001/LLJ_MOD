@@ -37,7 +37,7 @@ public sealed class GameEventMonitor
         if (realtimeSinceStartup < _nextPoll) return;
         _nextPoll = realtimeSinceStartup + 0.2f;
         TryPoll("游戏状态", PollGame, realtimeSinceStartup);
-        if (!_inGame) return;
+        if (!_inGame || _paused == true) return;
         TryPoll("心率/快感", PollHeartAndPleasure, realtimeSinceStartup);
         TryPoll("道具", PollItems, realtimeSinceStartup);
         TryPoll("露出/风险", PollExposure, realtimeSinceStartup);
@@ -113,9 +113,11 @@ public sealed class GameEventMonitor
         _remainingLife = remainingLife;
 
         var paused = Link.GameManager.IsGamePaused;
+        if (_paused == false && paused)
+            _router.ClearAllStates("游戏暂停");
         _paused = paused;
 
-        CurrentSummary = $"{status} | 生命 {remainingLife} | 惩罚 {_failureCount} | 风险 {Link.RiskPointsThisGame}";
+        CurrentSummary = $"{status}{(paused ? "（暂停）" : "")} | 生命 {remainingLife} | 惩罚 {_failureCount} | 风险 {Link.RiskPointsThisGame}";
     }
 
     private void PollHeartAndPleasure()

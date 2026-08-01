@@ -255,18 +255,13 @@ public sealed class DeviceSession : IDisposable
 
     private byte[] BuildToy(List<OutputRequest> active)
     {
-        int Combined(Func<DeviceActionConfig, bool> motor)
-        {
-            var values = active.Where(x => motor(x.Config)).Select(x => x.Intensity(Device.Kind)).ToList();
-            if (values.Count == 0) return 0;
-            var sumMode = active.Any(x => x.Config.ToyAggregation == ToyAggregationMode.SumClamped);
-            return sumMode ? Math.Clamp(values.Sum(), 0, 20) : values.Max();
-        }
-
         var winner = active.OrderByDescending(x => x.Intensity(Device.Kind)).First();
         var waveform = _waveforms.Get(Device.Kind, winner.Config.WaveformId);
         var scale = waveform.ToyEnvelope[_frameIndex++ % waveform.ToyEnvelope.Count];
-        return ProtocolPackets.ToyRate((int)MathF.Round(Combined(x => x.MotorA) * scale), (int)MathF.Round(Combined(x => x.MotorB) * scale), (int)MathF.Round(Combined(x => x.MotorC) * scale));
+        return ProtocolPackets.ToyRate(
+            (int)MathF.Round(OutputArbitration.ToyMotorIntensity(active, x => x.MotorA) * scale),
+            (int)MathF.Round(OutputArbitration.ToyMotorIntensity(active, x => x.MotorB) * scale),
+            (int)MathF.Round(OutputArbitration.ToyMotorIntensity(active, x => x.MotorC) * scale));
     }
 
     private byte[] BuildStopPacket() => Device.Kind switch

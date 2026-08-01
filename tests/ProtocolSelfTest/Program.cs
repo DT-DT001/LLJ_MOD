@@ -44,6 +44,25 @@ EqualValue(10, new OutputRequest { Config = penaltyAction, Context = new EventCo
 EqualValue(20, new OutputRequest { Config = penaltyAction, Context = new EventContext(FailureCount: 3) }.Intensity(DeviceKind.YcyEmsV2), "连续惩罚强度叠加");
 EqualValue(7f, penaltyAction.EffectiveDuration(new EventContext(FailureCount: 3)), "连续惩罚时间叠加");
 
+EqualValue(35, new OutputRequest
+{
+    EventKey = "game.penalty",
+    Config = new DeviceActionConfig { BaseIntensity = 10, MaxIntensity = 35, IntensityPerPenalty = 50 },
+    Context = new EventContext(FailureCount: 3)
+}.Intensity(DeviceKind.YcyEmsV2), "役次元动态事件遵守独立强度上限");
+EqualValue(155, new OutputRequest
+{
+    EventKey = "risk.change",
+    Config = new DeviceActionConfig { BaseIntensity = 10, MaxIntensity = 155, UseEventValue = true, EventValueMultiplier = 10 },
+    Context = new EventContext(NumericValue: 99)
+}.Intensity(DeviceKind.CoyoteV3), "郊狼数值事件遵守独立强度上限");
+EqualValue(12, new OutputRequest
+{
+    EventKey = "item.any.active",
+    Config = new DeviceActionConfig { BaseIntensity = 5, MaxIntensity = 12, UseGameItemLevel = true, IntensityPerGameLevel = 5 },
+    Context = new EventContext(GameLevel: 9)
+}.Intensity(DeviceKind.YcyToy), "玩具挡位事件遵守独立强度上限");
+
 var toyAction = new DeviceActionConfig { BaseIntensity = 5, UseGameItemLevel = true, IntensityPerGameLevel = 3 };
 EqualValue(14, new OutputRequest { EventKey = "item.any.active", Config = toyAction, Context = new EventContext(GameLevel: 4) }.Intensity(DeviceKind.YcyToy), "飞机杯跳蛋按道具挡位调强度");
 EqualValue(20, new OutputRequest { EventKey = "item.any.active", Config = toyAction, Context = new EventContext(GameLevel: 99) }.Intensity(DeviceKind.YcyToy), "飞机杯跳蛋强度限制 20");
@@ -53,6 +72,44 @@ var numericAction = new DeviceActionConfig { BaseIntensity = 10, UseEventValue =
 EqualValue(40, new OutputRequest { EventKey = "risk.change", Config = numericAction, Context = new EventContext(NumericValue: 20) }.Intensity(DeviceKind.YcyEmsV2), "风险值按倍率换算设备强度");
 EqualValue(180, new OutputRequest { EventKey = "heart.active", Config = numericAction, Context = new EventContext(NumericValue: 200) }.Intensity(DeviceKind.YcyEmsV2), "数值倍率仍受役次元强度上限保护");
 EqualValue(10, new OutputRequest { EventKey = "risk.change", Config = new DeviceActionConfig { BaseIntensity = 10, EventValueMultiplier = 5 }, Context = new EventContext(NumericValue: 20) }.Intensity(DeviceKind.YcyEmsV2), "未启用数值换算时保持基础强度");
+
+var invalidYcyInput = new DeviceActionConfig
+{
+    BaseIntensity = 999,
+    MaxIntensity = 999,
+    IntensityPerPenalty = 999,
+    IntensityPerGameLevel = 999,
+    DurationSeconds = -1,
+    DurationPerPenalty = -1,
+    EventValueMultiplier = -1
+};
+EqualValue(true, invalidYcyInput.NormalizeFor(DeviceKind.YcyEmsV1), "越界配置输入会被归一化");
+EqualValue(true,
+    invalidYcyInput.BaseIntensity == 180 && invalidYcyInput.MaxIntensity == 180 &&
+    invalidYcyInput.IntensityPerPenalty == 180 && invalidYcyInput.IntensityPerGameLevel == 180 &&
+    invalidYcyInput.DurationSeconds == 0.1f && invalidYcyInput.DurationPerPenalty == 0f &&
+    invalidYcyInput.EventValueMultiplier == 0f,
+    "役次元所有强度输入限制为 0-180");
+
+var invalidToyInput = new DeviceActionConfig { BaseIntensity = 200, MaxIntensity = 200, IntensityPerGameLevel = 200 };
+invalidToyInput.NormalizeFor(DeviceKind.YcyToy);
+EqualValue(true,
+    invalidToyInput.BaseIntensity == 20 && invalidToyInput.MaxIntensity == 20 && invalidToyInput.IntensityPerGameLevel == 20,
+    "飞机杯跳蛋所有强度输入限制为 0-20");
+var invalidCoyoteInput = new DeviceActionConfig { BaseIntensity = 999, MaxIntensity = 999 };
+invalidCoyoteInput.NormalizeFor(DeviceKind.CoyoteV3);
+EqualValue(true, invalidCoyoteInput.BaseIntensity == 200 && invalidCoyoteInput.MaxIntensity == 200,
+    "郊狼所有强度输入限制为 0-200");
+
+var itemSumConfig = new DeviceActionConfig { BaseIntensity = 8, MaxIntensity = 20, ToyAggregation = ToyAggregationMode.SumClamped };
+var concurrentToyRequests = new[]
+{
+    new OutputRequest { EventKey = "item.any.active", Config = itemSumConfig.Copy() },
+    new OutputRequest { EventKey = "item.any.active", Config = itemSumConfig.Copy() },
+    new OutputRequest { EventKey = "heart.active", Config = new DeviceActionConfig { BaseIntensity = 18, MaxIntensity = 20 } }
+};
+EqualValue(18, OutputArbitration.ToyMotorIntensity(concurrentToyRequests, config => config.MotorA),
+    "多道具允许相加但不同事件之间取最高值不意外叠加");
 
 var requiredEvents = new[]
 {
@@ -67,6 +124,26 @@ EqualValue(true,
     EventCatalog.Find("heart.active")?.NumericValueLabel == "心率百分比" &&
     EventCatalog.Find("exposure.change")?.NumericValueLabel == "露出阶段",
     "带数值事件公开正确的倍率单位");
+EqualValue(true,
+    EventCatalog.HasVariableIntensity("game.penalty", DeviceKind.YcyEmsV1) &&
+    EventCatalog.HasVariableIntensity("risk.change", DeviceKind.CoyoteV3) &&
+    EventCatalog.HasVariableIntensity("item.any.active", DeviceKind.YcyToy) &&
+    !EventCatalog.HasVariableIntensity("item.any.active", DeviceKind.YcyEmsV2) &&
+    !EventCatalog.HasVariableIntensity("game.start", DeviceKind.YcyToy),
+    "仅强度会变化的事件显示每设备强度上限");
+
+var invalidThresholds = new ModSettings
+{
+    HeartMediumThreshold = 0.8f,
+    HeartHighThreshold = 0.2f,
+    RiskMediumThreshold = 80,
+    RiskHighThreshold = 20
+};
+EqualValue(true, invalidThresholds.NormalizeGlobalValues(), "冲突阈值会被归一化");
+EqualValue(true,
+    invalidThresholds.HeartHighThreshold == invalidThresholds.HeartMediumThreshold &&
+    invalidThresholds.RiskHighThreshold == invalidThresholds.RiskMediumThreshold,
+    "高阈值不会低于中阈值");
 
 var legacy = new ModSettings();
 legacy.GetBindings("npc.alert")["device-a"] = new DeviceActionConfig { BaseIntensity = 11 };

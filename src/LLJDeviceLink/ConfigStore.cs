@@ -22,12 +22,14 @@ public sealed class ConfigStore
     {
         _path = Path.Combine(Paths.ConfigPath, "LLJDeviceLink", "settings.json");
         Settings = Load();
-        if (EventCatalog.MigrateBindings(Settings))
+        var migrated = EventCatalog.MigrateBindings(Settings);
+        var normalized = Settings.NormalizeGlobalValues();
+        if (migrated)
         {
             BackupPreMigrationConfig();
-            Save();
             Plugin.LogSource.LogInfo("事件配置已升级为精简目录；旧文件已保留为 settings.pre-1.3.0.json");
         }
+        if (migrated || normalized) Save();
     }
 
     private void BackupPreMigrationConfig()

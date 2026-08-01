@@ -338,11 +338,17 @@ public sealed class ModBehaviour : MonoBehaviour
     [HideFromIl2Cpp]
     private bool DrawAction(DeviceSession session, DeviceActionConfig action, bool stateful, float x, float y, float width)
     {
-        var dirty = false;
+        var dirty = action.NormalizeFor(session.Device.Kind);
         dirty |= ToggleButton(x, y, 150, "启用输出", ref action.Enabled);
-        var max = session.Device.Kind switch { DeviceKind.YcyToy => 20, DeviceKind.CoyoteV3 => 200, _ => 180 };
+        var max = DeviceLimits.MaxIntensity(session.Device.Kind);
         dirty |= IntStepper($"基础强度 0-{max}", ref action.BaseIntensity, 0, max, 10, x + 166, y);
         y += 36;
+
+        if (EventCatalog.HasVariableIntensity(_selectedEvent, session.Device.Kind))
+        {
+            dirty |= IntStepper($"强度上限 0-{max}", ref action.MaxIntensity, 0, max, 10, x, y);
+            y += 36;
+        }
 
         if (_selectedEvent == "game.penalty")
         {
@@ -451,10 +457,23 @@ public sealed class ModBehaviour : MonoBehaviour
         dirty |= IntStepper("风险中阈值", ref settings.RiskMediumThreshold, 0, 99999, 5, 24, 228);
         dirty |= IntStepper("风险高阈值", ref settings.RiskHighThreshold, 0, 99999, 5, 314, 228);
 
+        var normalizedHeartHigh = Math.Max(settings.HeartMediumThreshold, settings.HeartHighThreshold);
+        if (Math.Abs(normalizedHeartHigh - settings.HeartHighThreshold) > 0.0001f)
+        {
+            settings.HeartHighThreshold = normalizedHeartHigh;
+            dirty = true;
+        }
+        var normalizedRiskHigh = Math.Max(settings.RiskMediumThreshold, settings.RiskHighThreshold);
+        if (normalizedRiskHigh != settings.RiskHighThreshold)
+        {
+            settings.RiskHighThreshold = normalizedRiskHigh;
+            dirty = true;
+        }
+
         Box(24, 278, 868, 92, "");
         Label(36, 289, 840, 24, "飞机杯/跳蛋会合成所有仍处于开启状态的游戏道具。关闭其中一个道具不会停止其他仍开启道具的输出。");
         Label(36, 317, 840, 24, "役次元电击器强度限制 0–180；郊狼 3.0 限制 0–200，并额外受设备页 BF 软上限约束。");
-        Label(36, 345, 840, 24, "事件配置按设备独立保存；持续事件结束时只撤销对应事件和来源，不影响同设备上的其他事件。");
+        Label(36, 345, 840, 24, "动态事件还受每事件/每设备强度上限保护；持续事件结束只撤销自身，不影响其他事件。");
 
         Label(24, 388, 860, 26, "事件监控诊断（最新在上）");
         var recent = _router.RecentEvents.Take(7).ToList();
@@ -490,6 +509,7 @@ public sealed class ModBehaviour : MonoBehaviour
         return new DeviceActionConfig
         {
             BaseIntensity = kind == DeviceKind.YcyToy ? 5 : 10,
+            MaxIntensity = DeviceLimits.MaxIntensity(kind),
             WaveformId = waveform?.Id ?? "",
             ChannelA = true,
             ChannelB = false,
