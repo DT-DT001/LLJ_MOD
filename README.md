@@ -282,3 +282,7 @@ Mod 启动时会递归读取游戏根目录的 `waveforms`。新增或修改 JSO
 ## 第三方组件
 
 发行包包含 BepInEx 6 IL2CPP 运行环境。第三方组件说明见 [THIRD_PARTY.md](THIRD_PARTY.md)。
+
+## 维护与反馈
+
+本仓库由 [DarkThunder（@DT-DT001）](https://github.com/DT-DT001) 维护。问题和建议可提交到 [Issues](https://github.com/DT-DT001/LLJ_MOD/issues)。
